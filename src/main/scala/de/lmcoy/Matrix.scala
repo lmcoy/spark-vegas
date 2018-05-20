@@ -12,6 +12,11 @@ case class Matrix(nrow: Int, ncol: Int, data: Array[Double]) {
     new Matrix(nrow, ncol, data.updated(index, data(index) + value))
   }
 
+  def add(row: Int, col: Int, value: Double) = {
+    val index = col + row * ncol
+    data.update(index, data(index) + value)
+  }
+
   def mulFactor(value: Double) : Matrix =
     new Matrix(nrow, ncol, data.map(_ * value))
 

@@ -1,7 +1,9 @@
 package de.lmcoy
 
 import de.lmcoy.VegasRandom.{Evaluation, Result, refineGrid}
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+
 import scala.annotation.tailrec
 import scala.util.Random
 
@@ -27,17 +29,14 @@ case class VegasRandom(ndim: Int, nbin: Int, xi: Matrix, allEvaluations: Evaluat
     go(ndim-1, 1.0, Nil, Nil)
   }
 
-  private def add(args: FunctionArgs, f: Double) = {
-    val fx = args.wgt * f
+  private def add(args: FunctionArgs, f: List[Double] => Double) = {
+    val fx = args.wgt * f(args.x)
     val fx2 = fx * fx
 
-    @tailrec
-    def go(j : Int, ds: Matrix) : Matrix = {
-      if (j == ndim) ds
-      else go(j+1, ds.addToElement(args.ia(j) - 1, j, fx2))
+    val d = Matrix(nbin, ndim)
+    for (j <- 0 until ndim) {
+      d.add(args.ia(j) -1, j, fx2)
     }
-
-    val d = go(0, Matrix(nbin, ndim))
     Evaluation(1, fx, fx2, d)
   }
 
@@ -54,15 +53,19 @@ case class VegasRandom(ndim: Int, nbin: Int, xi: Matrix, allEvaluations: Evaluat
   }
 
   def it(n:Int)(implicit spark: SparkSession) : Evaluation = {
-    val partitions = 4
+    def f(x: List[Double]): Double = x(0)*x(1)
+    val partitions = 2
     val init = spark.sparkContext.parallelize(Seq.fill(partitions)(n/partitions),partitions)
-    val randomNumbers = init.flatMap(numRnd => Seq.fill(numRnd)(functionArgs))
-
-    def f(x:List[Double]): Double = x(0)*x(1)
-    val withF = randomNumbers.map(fargs => (fargs,f(fargs.x)))
-
-    val values = withF.map(x => add(x._1,x._2))
-    values.reduce((a, b) => a + b)
+    val tmp = init.map(nb => {
+       var evals = Evaluation(0,0.0,0.0,Matrix(nbin,ndim))
+       for(_ <- 0 until nb) {
+         val args = functionArgs
+         val eval = add(args, f)
+         evals = evals + eval
+       }
+       evals
+     })
+    tmp.reduce((a,b) => a + b)
   }
 
   def integralTotal : Result = integral(allEvaluations.n.toDouble, allEvaluations.f, allEvaluations.f2)
