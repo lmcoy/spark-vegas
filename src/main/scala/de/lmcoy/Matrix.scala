@@ -22,6 +22,13 @@ case class Matrix(nrow: Int, ncol: Int, data: Array[Double]) {
 
   def +(other:Matrix) : Matrix =
     new Matrix(nrow, ncol, data.zip(other.data).map(x => x._1 + x._2))
+
+  def addMatrix(other: Matrix) = {
+    for (i <- 0 until nrow*ncol) {
+      data.update(i, data(i) + other.data(i))
+    }
+    this
+  }
 }
 
 object Matrix {
