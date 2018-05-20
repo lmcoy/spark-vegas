@@ -6,7 +6,7 @@ object Main extends App {
 
   def f(x: List[Double]): Double = x(0)*x(1)
 
-  implicit val spark = SparkSession.builder.appName("Simple Application").master("local[*]")
+  implicit val spark = SparkSession.builder.appName("VEGAS").master("local[*]")
     .getOrCreate()
 
   val t1 = System.nanoTime
@@ -25,6 +25,4 @@ object Main extends App {
 
   val duration = (System.nanoTime - t1) / 1e9d
   println( s"duration: $duration s")
-
-  //Thread.sleep(1000*500)
 }
