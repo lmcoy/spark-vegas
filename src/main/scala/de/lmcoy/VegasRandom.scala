@@ -30,11 +30,13 @@ case class VegasRandom(ndim: Int, nbin: Int, xi: Matrix, allEvaluations: Evaluat
     go(ndim-1, 1.0, Nil, Nil)
   }
 
-  private def add(args: FunctionArgs, f: List[Double] => Double) = {
+  private def add(args: FunctionArgs, f: List[Double] => Double, d: Matrix) = {
     val fx = args.wgt * f(args.x)
     val fx2 = fx * fx
-
-    val d = Matrix(nbin, ndim)
+    
+    for (i <- 0 until ndim * nbin) {
+      d.data.update(i, 0.0)
+    }
     for (j <- 0 until ndim) {
       d.add(args.ia(j) -1, j, fx2)
     }
@@ -58,10 +60,11 @@ case class VegasRandom(ndim: Int, nbin: Int, xi: Matrix, allEvaluations: Evaluat
     val init = spark.sparkContext.parallelize(Seq.fill(partitions)(n/partitions),partitions)
     val tmp = init.map(nb => {
        var evals = Evaluation(0,0.0,0.0,Matrix(nbin,ndim))
+       val d = Matrix(nbin, ndim)
        val random = ThreadLocalRandom.current()
        for(_ <- 0 until nb) {
          val args = functionArgs(random)
-         val eval = add(args, f)
+         val eval = add(args, f, d)
          evals = evals + eval
        }
        evals
